@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Test Script: Left and Right Transit
-- Takes off to 2m
-- Strafes right 3m (positive Y in NED)
+ Test Script: Left and Right Transit
+- Takes off to 1m
+- Strafes right 1.5m (positive Y in NED)
 - Hovers 3s
 - Strafes left back to origin (Y=0)
 - Hovers 3s
@@ -46,8 +46,8 @@ class TestLeftRight(Node):
 
         self.timer = self.create_timer(0.05, self.timer_cb)
 
-        self.takeoff_z = -2.0
-        self.transit_dist = 3.0  # meters left/right
+        self.takeoff_z = -1.0
+        self.transit_dist = 1.5  # meters left/right
 
         self.state = State.INIT
         self.state_start = time.time()

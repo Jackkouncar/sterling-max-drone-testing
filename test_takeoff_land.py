@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Test Script: Takeoff and Land
+ Test Script: Takeoff and Land
 - Arms drone, enters offboard mode
-- Takes off to 2m altitude
+- Takes off to 1m altitude
 - Hovers for 5 seconds
 - Lands
 """
@@ -40,7 +40,7 @@ class TestTakeoffLand(Node):
 
         self.timer = self.create_timer(0.05, self.timer_cb)  # 20 Hz
 
-        self.takeoff_z = -2.0  # NED: negative = up
+        self.takeoff_z = -1.0  # NED: negative = up
         self.state = State.INIT
         self.state_start = time.time()
         self.log_counter = 0  # throttle log messages

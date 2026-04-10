@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Test Script: All-Directions Square Transit
-- Takes off to 2m
-- Flies forward 3m (+X)
-- Flies right 3m (+Y)
-- Flies backward 3m (back to X=0)
-- Flies left 3m (back to Y=0, origin)
+ Test Script: All-Directions Square Transit
+- Takes off to 1m
+- Flies forward 1.5m (+X)
+- Flies right 1.5m (+Y)
+- Flies backward 1.5m (back to X=0)
+- Flies left 1.5m (back to Y=0, origin)
 - Lands
 
 Traces a square pattern: origin -> forward -> forward-right -> right -> origin -> land
@@ -52,8 +52,8 @@ class TestAllDirections(Node):
 
         self.timer = self.create_timer(0.05, self.timer_cb)
 
-        self.takeoff_z = -2.0
-        self.d = 3.0  # transit distance in meters
+        self.takeoff_z = -1.0
+        self.d = 1.5  # transit distance in meters
 
         self.state = State.INIT
         self.state_start = time.time()

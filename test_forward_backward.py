@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Test Script: Forward and Backward Transit
-- Takes off to 2m
-- Flies forward 3m (positive X in NED)
+ Test Script: Forward and Backward Transit
+- Takes off to 1m
+- Flies forward 1.5m (positive X in NED)
 - Hovers 3s
 - Flies backward to origin
 - Hovers 3s
@@ -46,8 +46,8 @@ class TestForwardBackward(Node):
 
         self.timer = self.create_timer(0.05, self.timer_cb)
 
-        self.takeoff_z = -2.0
-        self.transit_dist = 3.0  # meters forward/backward
+        self.takeoff_z = -1.0
+        self.transit_dist = 1.5  # meters forward/backward
 
         self.state = State.INIT
         self.state_start = time.time()
