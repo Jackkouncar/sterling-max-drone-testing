@@ -2,12 +2,25 @@
 
 ROS 2 / PX4 offboard test scripts for basic movement checks with the Sterling Max drone setup.
 
+Repository:
+
+`https://github.com/Jackkouncar/sterling-max-drone-testing`
+
 ## Included scripts
 
 - `test_takeoff_land.py`
 - `test_forward_backward.py`
 - `test_left_right.py`
 - `test_all_directions.py`
+
+## Current indoor limits
+
+These scripts are currently tuned for indoor testing:
+
+- Takeoff height: `1.0 m`
+- Horizontal movement: `1.5 m`
+
+Be aware that the square test reaches the corner point `(1.5, 1.5)`, which is about `2.12 m` diagonally from the origin.
 
 ## Important note
 
@@ -35,8 +48,8 @@ Before running these scripts on another device, make sure that device has:
 Once this folder is pushed to GitHub, GitLab, or another remote, you can download it on another device with:
 
 ```powershell
-git clone <YOUR-REPO-URL>
-cd "Drone Testing"
+git clone https://github.com/Jackkouncar/sterling-max-drone-testing.git
+cd sterling-max-drone-testing
 ```
 
 ## Run a script
@@ -55,9 +68,20 @@ python test_all_directions.py
 For safety and easier recovery:
 
 1. Keep this project in Git
-2. Push it to a private GitHub repo
+2. Keep the repo private if needed and add collaborators
 3. Clone it onto the laptop or companion computer you use with the drone
 4. Test `test_takeoff_land.py` first before trying the movement scripts
+
+## Recommended indoor test order
+
+Run the scripts in this order:
+
+1. `test_takeoff_land.py`
+2. `test_forward_backward.py`
+3. `test_left_right.py`
+4. `test_all_directions.py`
+
+Stop after each flight and confirm the drone stayed well inside the room boundaries before moving to the next script.
 
 ## Create the repo and first commit
 
