@@ -1,10 +1,10 @@
-# Sterling Max Drone Test Scripts
+# ModalAI Starling 2 Drone Test Scripts
 
-ROS 2 / PX4 offboard test scripts for basic movement checks with the Sterling Max drone setup.
+ROS 2 Foxy / PX4 offboard test scripts for basic movement checks with the ModalAI Starling 2 drone setup.
 
 Repository:
 
-`https://github.com/Jackkouncar/sterling-max-drone-testing`
+`https://github.com/Jackkouncar/modalai-starling-2-drone-testing`
 
 ## Included scripts
 
@@ -12,6 +12,8 @@ Repository:
 - `test_forward_backward.py`
 - `test_left_right.py`
 - `test_all_directions.py`
+
+Shared settings live in `flight_config.py`.
 
 ## Current indoor limits
 
@@ -22,6 +24,8 @@ These scripts are currently tuned for indoor testing:
 
 Be aware that the square test reaches the corner point `(1.5, 1.5)`, which is about `2.12 m` diagonally from the origin.
 
+To change these limits later, edit `TAKEOFF_HEIGHT_M` and `TRANSIT_DISTANCE_M` in `flight_config.py`.
+
 ## Important note
 
 These scripts publish PX4 offboard topics such as `/fmu/in/offboard_control_mode` and `/fmu/in/trajectory_setpoint`.
@@ -31,7 +35,7 @@ That usually means they should run on:
 - a companion computer connected to the drone, or
 - a ground computer on the same ROS 2 / PX4 network
 
-They usually do **not** get copied directly onto the flight controller itself unless your Sterling Max setup already includes an onboard computer that runs ROS 2 and has access to the PX4 bridge.
+They usually do **not** get copied directly onto the flight controller itself unless your ModalAI Starling 2 setup already includes an onboard computer that runs ROS 2 and has access to the PX4 bridge.
 
 ## Prerequisites on any new device
 
@@ -39,17 +43,31 @@ Before running these scripts on another device, make sure that device has:
 
 1. Git installed
 2. Python 3 installed
-3. ROS 2 installed and sourced
+3. ROS 2 Foxy installed and sourced
 4. `px4_msgs` available in the ROS 2 environment
 5. Network or physical connection to the drone or companion computer
+
+These scripts are currently targeted for ROS 2 Foxy. They avoid Humble-specific APIs, and each script logs a warning if `ROS_DISTRO` is not set to `foxy`.
+
+On Ubuntu, source Foxy before running:
+
+```bash
+source /opt/ros/foxy/setup.bash
+```
+
+If `px4_msgs` is built in a workspace, source that workspace too:
+
+```bash
+source ~/px4_ros_com_ros2/install/setup.bash
+```
 
 ## Clone on another device
 
 Once this folder is pushed to GitHub, GitLab, or another remote, you can download it on another device with:
 
 ```powershell
-git clone https://github.com/Jackkouncar/sterling-max-drone-testing.git
-cd sterling-max-drone-testing
+git clone https://github.com/Jackkouncar/modalai-starling-2-drone-testing.git
+cd modalai-starling-2-drone-testing
 ```
 
 ## Run a script

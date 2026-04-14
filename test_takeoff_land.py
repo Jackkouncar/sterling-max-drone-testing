@@ -12,6 +12,7 @@ from rclpy.node import Node
 import time
 from enum import Enum
 
+from flight_config import TARGET_DRONE, TAKEOFF_Z_NED, log_environment_check
 from px4_msgs.msg import (
     OffboardControlMode,
     TrajectorySetpoint,
@@ -40,12 +41,13 @@ class TestTakeoffLand(Node):
 
         self.timer = self.create_timer(0.05, self.timer_cb)  # 20 Hz
 
-        self.takeoff_z = -1.0  # NED: negative = up
+        self.takeoff_z = TAKEOFF_Z_NED  # NED: negative = up
         self.state = State.INIT
         self.state_start = time.time()
         self.log_counter = 0  # throttle log messages
 
-        self.get_logger().info("=== Test: Takeoff and Land ===")
+        self.get_logger().info(f"=== {TARGET_DRONE} Test: Takeoff and Land ===")
+        log_environment_check(self)
 
     def now_us(self):
         return self.get_clock().now().nanoseconds // 1000

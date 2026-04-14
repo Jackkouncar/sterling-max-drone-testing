@@ -14,6 +14,12 @@ from rclpy.node import Node
 import time
 from enum import Enum
 
+from flight_config import (
+    TARGET_DRONE,
+    TAKEOFF_Z_NED,
+    TRANSIT_DISTANCE_M,
+    log_environment_check,
+)
 from px4_msgs.msg import (
     OffboardControlMode,
     TrajectorySetpoint,
@@ -46,14 +52,15 @@ class TestForwardBackward(Node):
 
         self.timer = self.create_timer(0.05, self.timer_cb)
 
-        self.takeoff_z = -1.0
-        self.transit_dist = 1.5  # meters forward/backward
+        self.takeoff_z = TAKEOFF_Z_NED
+        self.transit_dist = TRANSIT_DISTANCE_M  # meters forward/backward
 
         self.state = State.INIT
         self.state_start = time.time()
         self.log_counter = 0
 
-        self.get_logger().info("=== Test: Forward / Backward Transit ===")
+        self.get_logger().info(f"=== {TARGET_DRONE} Test: Forward / Backward Transit ===")
+        log_environment_check(self)
 
     def now_us(self):
         return self.get_clock().now().nanoseconds // 1000

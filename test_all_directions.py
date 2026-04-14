@@ -16,6 +16,12 @@ from rclpy.node import Node
 import time
 from enum import Enum
 
+from flight_config import (
+    TARGET_DRONE,
+    TAKEOFF_Z_NED,
+    TRANSIT_DISTANCE_M,
+    log_environment_check,
+)
 from px4_msgs.msg import (
     OffboardControlMode,
     TrajectorySetpoint,
@@ -52,8 +58,8 @@ class TestAllDirections(Node):
 
         self.timer = self.create_timer(0.05, self.timer_cb)
 
-        self.takeoff_z = -1.0
-        self.d = 1.5  # transit distance in meters
+        self.takeoff_z = TAKEOFF_Z_NED
+        self.d = TRANSIT_DISTANCE_M  # transit distance in meters
 
         self.state = State.INIT
         self.state_start = time.time()
@@ -68,7 +74,8 @@ class TestAllDirections(Node):
             State.LEFT:     (0.0,   0.0),
         }
 
-        self.get_logger().info("=== Test: All-Directions Square ===")
+        self.get_logger().info(f"=== {TARGET_DRONE} Test: All-Directions Square ===")
+        log_environment_check(self)
 
     def now_us(self):
         return self.get_clock().now().nanoseconds // 1000
