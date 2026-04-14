@@ -6,6 +6,48 @@ Repository:
 
 `https://github.com/Jackkouncar/modalai-starling-2-drone-testing`
 
+## Quick Start for Teammates
+
+Clone the repo:
+
+```bash
+git clone https://github.com/Jackkouncar/modalai-starling-2-drone-testing.git
+cd modalai-starling-2-drone-testing
+```
+
+Before running anything, source ROS 2 Foxy and the PX4 messages workspace:
+
+```bash
+source /opt/ros/foxy/setup.bash
+source ~/px4_ros_com_ros2/install/setup.bash
+echo $ROS_DISTRO
+```
+
+Make sure `echo $ROS_DISTRO` prints:
+
+```bash
+foxy
+```
+
+Run tests in this order:
+
+```bash
+python3 test_takeoff_land.py
+python3 test_forward_backward.py
+python3 test_left_right.py
+python3 test_all_directions.py
+```
+
+Start with `test_takeoff_land.py` only. Do not run the movement scripts until takeoff and landing are stable.
+
+Current limits:
+
+- Height: `1.0 m`
+- Movement: `1.5 m`
+- Square test diagonal reach: about `2.12 m` from the start point
+
+Have someone ready to take over or emergency stop during every test.
+
 ## Included scripts
 
 - `test_takeoff_land.py`
