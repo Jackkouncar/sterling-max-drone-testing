@@ -4,7 +4,7 @@
 - Arms drone, enters offboard mode
 - Takes off to 1m altitude
 - Hovers for 5 seconds
-- Lands
+- Soft-lands using smoothstep descent (see flight_config.soft_landing_z)
 """
 
 import rclpy
@@ -51,7 +51,7 @@ class TestTakeoffLand(Node):
         self.takeoff_z = TAKEOFF_Z_NED  # NED: negative = up
         self.state = State.INIT
         self.state_start = time.time()
-        self.log_counter = 0  # throttle log messages
+        self.log_counter = 0
 
         self.get_logger().info(f"=== {TARGET_DRONE} Test: Takeoff and Land ===")
         log_environment_check(self)
@@ -105,7 +105,7 @@ class TestTakeoffLand(Node):
         self.vehicle_command(VehicleCommand.VEHICLE_CMD_NAV_LAND)
 
     def log_throttled(self, message, every_n=40):
-        """Log once every every_n timer ticks (~2s at 20Hz)."""
+        """Log once every every_n timer ticks (~2 s at 20 Hz)."""
         self.log_counter += 1
         if self.log_counter % every_n == 1:
             self.get_logger().info(message)
@@ -134,6 +134,7 @@ class TestTakeoffLand(Node):
                 self.transition(State.LAND)
 
         elif self.state == State.LAND:
+            # soft_landing_z now uses smoothstep: gentle start and end to descent
             self.publish_setpoint(0.0, 0.0, soft_landing_z(dt))
             if dt < SOFT_LAND_DESCENT_SECONDS:
                 self.log_throttled(f"Soft descending... {dt:.1f}s")

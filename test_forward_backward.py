@@ -2,11 +2,17 @@
 """
  Test Script: Forward and Backward Transit
 - Takes off to 1m
-- Flies forward 1.5m (positive X in NED)
+- Flies forward 1.5m (positive X in NED) using smoothstep interpolation
 - Hovers 3s
-- Flies backward to origin
+- Flies backward to origin using smoothstep interpolation
 - Hovers 3s
 - Lands
+
+All horizontal motion is interpolated with smooth_transit_xy() from
+flight_config.py.  The drone is given a gradually advancing position
+setpoint rather than a sudden jump to the target, so it accelerates
+gently at the start of each leg and decelerates to a near-stop before
+the hover phase.
 """
 
 import rclpy
@@ -15,12 +21,15 @@ import time
 from enum import Enum
 
 from flight_config import (
+    HOVER_SETTLE_S,
     LAND_COMMAND_SECONDS,
     SOFT_LAND_DESCENT_SECONDS,
     TARGET_DRONE,
     TAKEOFF_Z_NED,
     TRANSIT_DISTANCE_M,
+    TRANSIT_DURATION_S,
     log_environment_check,
+    smooth_transit_xy,
     soft_landing_z,
 )
 from px4_msgs.msg import (
@@ -53,10 +62,10 @@ class TestForwardBackward(Node):
         self.cmd_pub = self.create_publisher(
             VehicleCommand, '/fmu/in/vehicle_command', 10)
 
-        self.timer = self.create_timer(0.05, self.timer_cb)
+        self.timer = self.create_timer(0.05, self.timer_cb)  # 20 Hz
 
         self.takeoff_z = TAKEOFF_Z_NED
-        self.transit_dist = TRANSIT_DISTANCE_M  # meters forward/backward
+        self.d = TRANSIT_DISTANCE_M
 
         self.state = State.INIT
         self.state_start = time.time()
@@ -138,31 +147,35 @@ class TestForwardBackward(Node):
         elif self.state == State.HOVER_PRE:
             self.publish_setpoint(0.0, 0.0, self.takeoff_z)
             self.log_throttled(f"Stabilizing... {dt:.1f}s")
-            if dt > 3.0:
+            if dt > HOVER_SETTLE_S:
                 self.transition(State.FORWARD)
 
         elif self.state == State.FORWARD:
-            self.publish_setpoint(self.transit_dist, 0.0, self.takeoff_z)
-            self.log_throttled(f"Moving forward {self.transit_dist}m... {dt:.1f}s")
-            if dt > 5.0:
+            # Smoothly interpolate from origin to (d, 0) over TRANSIT_DURATION_S
+            x, y = smooth_transit_xy(dt, 0.0, 0.0, self.d, 0.0)
+            self.publish_setpoint(x, y, self.takeoff_z)
+            self.log_throttled(f"Moving forward -> ({x:.2f}, {y:.2f})  {dt:.1f}s")
+            if dt > TRANSIT_DURATION_S:
                 self.transition(State.HOVER_FWD)
 
         elif self.state == State.HOVER_FWD:
-            self.publish_setpoint(self.transit_dist, 0.0, self.takeoff_z)
+            self.publish_setpoint(self.d, 0.0, self.takeoff_z)
             self.log_throttled(f"Holding forward position... {dt:.1f}s")
-            if dt > 3.0:
+            if dt > HOVER_SETTLE_S:
                 self.transition(State.BACKWARD)
 
         elif self.state == State.BACKWARD:
-            self.publish_setpoint(0.0, 0.0, self.takeoff_z)
-            self.log_throttled(f"Moving backward to origin... {dt:.1f}s")
-            if dt > 5.0:
+            # Smoothly interpolate from (d, 0) back to origin
+            x, y = smooth_transit_xy(dt, self.d, 0.0, 0.0, 0.0)
+            self.publish_setpoint(x, y, self.takeoff_z)
+            self.log_throttled(f"Moving backward -> ({x:.2f}, {y:.2f})  {dt:.1f}s")
+            if dt > TRANSIT_DURATION_S:
                 self.transition(State.HOVER_BACK)
 
         elif self.state == State.HOVER_BACK:
             self.publish_setpoint(0.0, 0.0, self.takeoff_z)
             self.log_throttled(f"Holding origin... {dt:.1f}s")
-            if dt > 3.0:
+            if dt > HOVER_SETTLE_S:
                 self.transition(State.LAND)
 
         elif self.state == State.LAND:

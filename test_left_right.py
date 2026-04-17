@@ -2,11 +2,15 @@
 """
  Test Script: Left and Right Transit
 - Takes off to 1m
-- Strafes right 1.5m (positive Y in NED)
+- Strafes right 1.5m (positive Y in NED) using smoothstep interpolation
 - Hovers 3s
-- Strafes left back to origin (Y=0)
+- Strafes left back to origin (Y=0) using smoothstep interpolation
 - Hovers 3s
 - Lands
+
+All horizontal motion is interpolated with smooth_transit_xy() from
+flight_config.py so the drone accelerates and decelerates gently
+instead of jumping instantly to each target position.
 """
 
 import rclpy
@@ -15,12 +19,15 @@ import time
 from enum import Enum
 
 from flight_config import (
+    HOVER_SETTLE_S,
     LAND_COMMAND_SECONDS,
     SOFT_LAND_DESCENT_SECONDS,
     TARGET_DRONE,
     TAKEOFF_Z_NED,
     TRANSIT_DISTANCE_M,
+    TRANSIT_DURATION_S,
     log_environment_check,
+    smooth_transit_xy,
     soft_landing_z,
 )
 from px4_msgs.msg import (
@@ -53,10 +60,10 @@ class TestLeftRight(Node):
         self.cmd_pub = self.create_publisher(
             VehicleCommand, '/fmu/in/vehicle_command', 10)
 
-        self.timer = self.create_timer(0.05, self.timer_cb)
+        self.timer = self.create_timer(0.05, self.timer_cb)  # 20 Hz
 
         self.takeoff_z = TAKEOFF_Z_NED
-        self.transit_dist = TRANSIT_DISTANCE_M  # meters left/right
+        self.d = TRANSIT_DISTANCE_M
 
         self.state = State.INIT
         self.state_start = time.time()
@@ -138,31 +145,35 @@ class TestLeftRight(Node):
         elif self.state == State.HOVER_PRE:
             self.publish_setpoint(0.0, 0.0, self.takeoff_z)
             self.log_throttled(f"Stabilizing... {dt:.1f}s")
-            if dt > 3.0:
+            if dt > HOVER_SETTLE_S:
                 self.transition(State.RIGHT)
 
         elif self.state == State.RIGHT:
-            self.publish_setpoint(0.0, self.transit_dist, self.takeoff_z)
-            self.log_throttled(f"Moving right {self.transit_dist}m... {dt:.1f}s")
-            if dt > 5.0:
+            # Smoothly interpolate from origin to (0, d) over TRANSIT_DURATION_S
+            x, y = smooth_transit_xy(dt, 0.0, 0.0, 0.0, self.d)
+            self.publish_setpoint(x, y, self.takeoff_z)
+            self.log_throttled(f"Moving right -> ({x:.2f}, {y:.2f})  {dt:.1f}s")
+            if dt > TRANSIT_DURATION_S:
                 self.transition(State.HOVER_RIGHT)
 
         elif self.state == State.HOVER_RIGHT:
-            self.publish_setpoint(0.0, self.transit_dist, self.takeoff_z)
+            self.publish_setpoint(0.0, self.d, self.takeoff_z)
             self.log_throttled(f"Holding right position... {dt:.1f}s")
-            if dt > 3.0:
+            if dt > HOVER_SETTLE_S:
                 self.transition(State.LEFT)
 
         elif self.state == State.LEFT:
-            self.publish_setpoint(0.0, 0.0, self.takeoff_z)
-            self.log_throttled(f"Moving left to origin... {dt:.1f}s")
-            if dt > 5.0:
+            # Smoothly interpolate from (0, d) back to origin
+            x, y = smooth_transit_xy(dt, 0.0, self.d, 0.0, 0.0)
+            self.publish_setpoint(x, y, self.takeoff_z)
+            self.log_throttled(f"Moving left -> ({x:.2f}, {y:.2f})  {dt:.1f}s")
+            if dt > TRANSIT_DURATION_S:
                 self.transition(State.HOVER_LEFT)
 
         elif self.state == State.HOVER_LEFT:
             self.publish_setpoint(0.0, 0.0, self.takeoff_z)
             self.log_throttled(f"Holding origin... {dt:.1f}s")
-            if dt > 3.0:
+            if dt > HOVER_SETTLE_S:
                 self.transition(State.LAND)
 
         elif self.state == State.LAND:

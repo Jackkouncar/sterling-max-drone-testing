@@ -8,7 +8,11 @@
 - Flies left 1.5m (back to Y=0, origin)
 - Lands
 
-Traces a square pattern: origin -> forward -> forward-right -> right -> origin -> land
+Traces a square: origin -> forward -> forward-right -> right -> origin
+
+Each leg uses smooth_transit_xy() from flight_config.py so the drone
+accelerates and decelerates gently (smoothstep curve) instead of jumping
+instantly to each waypoint.
 """
 
 import rclpy
@@ -17,12 +21,15 @@ import time
 from enum import Enum
 
 from flight_config import (
+    HOVER_SETTLE_S,
     LAND_COMMAND_SECONDS,
     SOFT_LAND_DESCENT_SECONDS,
     TARGET_DRONE,
     TAKEOFF_Z_NED,
     TRANSIT_DISTANCE_M,
+    TRANSIT_DURATION_S,
     log_environment_check,
+    smooth_transit_xy,
     soft_landing_z,
 )
 from px4_msgs.msg import (
@@ -47,6 +54,23 @@ class State(Enum):
     LAND = 11
 
 
+# (x_start, y_start, x_end, y_end) for each movement leg
+_LEG = {
+    State.FORWARD:  (0.0, 0.0, 1.0, 0.0),   # scaled by d below
+    State.RIGHT:    (1.0, 0.0, 1.0, 1.0),
+    State.BACKWARD: (1.0, 1.0, 0.0, 1.0),
+    State.LEFT:     (0.0, 1.0, 0.0, 0.0),
+}
+
+# Waypoint to hold at after each leg
+_HOLD = {
+    State.HOVER_A: (1.0, 0.0),
+    State.HOVER_B: (1.0, 1.0),
+    State.HOVER_C: (0.0, 1.0),
+    State.HOVER_D: (0.0, 0.0),
+}
+
+
 class TestAllDirections(Node):
 
     def __init__(self):
@@ -59,23 +83,14 @@ class TestAllDirections(Node):
         self.cmd_pub = self.create_publisher(
             VehicleCommand, '/fmu/in/vehicle_command', 10)
 
-        self.timer = self.create_timer(0.05, self.timer_cb)
+        self.timer = self.create_timer(0.05, self.timer_cb)  # 20 Hz
 
         self.takeoff_z = TAKEOFF_Z_NED
-        self.d = TRANSIT_DISTANCE_M  # transit distance in meters
+        self.d = TRANSIT_DISTANCE_M
 
         self.state = State.INIT
         self.state_start = time.time()
         self.log_counter = 0
-
-        # Waypoints: (x, y) for each leg of the square
-        # Forward -> Forward+Right -> Right -> Origin
-        self.wp = {
-            State.FORWARD:  (self.d, 0.0),
-            State.RIGHT:    (self.d, self.d),
-            State.BACKWARD: (0.0,   self.d),
-            State.LEFT:     (0.0,   0.0),
-        }
 
         self.get_logger().info(f"=== {TARGET_DRONE} Test: All-Directions Square ===")
         log_environment_check(self)
@@ -133,15 +148,26 @@ class TestAllDirections(Node):
         if self.log_counter % every_n == 1:
             self.get_logger().info(message)
 
-    def current_target(self):
-        """Return (x, y) for current move state, or origin."""
-        return self.wp.get(self.state, (0.0, 0.0))
+    def _publish_leg(self, dt):
+        """
+        Compute and publish a smoothly interpolated setpoint for the current
+        movement leg.  Leg coordinates in _LEG are unit-scaled; multiply by
+        self.d to get real-world metres.
+        """
+        xs, ys, xe, ye = _LEG[self.state]
+        x, y = smooth_transit_xy(
+            dt,
+            xs * self.d, ys * self.d,
+            xe * self.d, ye * self.d,
+        )
+        self.publish_setpoint(x, y, self.takeoff_z)
+        self.log_throttled(f"{self.state.name} -> ({x:.2f}, {y:.2f})  {dt:.1f}s")
 
     def timer_cb(self):
         self.publish_offboard_mode()
         dt = time.time() - self.state_start
 
-        # --- INIT: send setpoints, then arm & offboard ---
+        # --- INIT ---
         if self.state == State.INIT:
             self.publish_setpoint(0.0, 0.0, self.takeoff_z)
             if dt > 1.5:
@@ -160,67 +186,27 @@ class TestAllDirections(Node):
         elif self.state == State.HOVER_START:
             self.publish_setpoint(0.0, 0.0, self.takeoff_z)
             self.log_throttled(f"Stabilizing... {dt:.1f}s")
-            if dt > 3.0:
+            if dt > HOVER_SETTLE_S:
                 self.transition(State.FORWARD)
 
-        # --- FORWARD (+X) ---
-        elif self.state == State.FORWARD:
-            x, y = self.current_target()
-            self.publish_setpoint(x, y, self.takeoff_z)
-            self.log_throttled(f"Forward to ({x},{y})... {dt:.1f}s")
-            if dt > 5.0:
-                self.transition(State.HOVER_A)
+        # --- Movement legs ---
+        elif self.state in _LEG:
+            self._publish_leg(dt)
+            if dt > TRANSIT_DURATION_S:
+                # advance to the corresponding hover state
+                next_hover = State(self.state.value + 1)
+                self.transition(next_hover)
 
-        elif self.state == State.HOVER_A:
-            x, y = self.wp[State.FORWARD]
-            self.publish_setpoint(x, y, self.takeoff_z)
-            self.log_throttled(f"Holding ({x},{y})... {dt:.1f}s")
-            if dt > 2.0:
-                self.transition(State.RIGHT)
-
-        # --- RIGHT (+Y) ---
-        elif self.state == State.RIGHT:
-            x, y = self.current_target()
-            self.publish_setpoint(x, y, self.takeoff_z)
-            self.log_throttled(f"Right to ({x},{y})... {dt:.1f}s")
-            if dt > 5.0:
-                self.transition(State.HOVER_B)
-
-        elif self.state == State.HOVER_B:
-            x, y = self.wp[State.RIGHT]
-            self.publish_setpoint(x, y, self.takeoff_z)
-            self.log_throttled(f"Holding ({x},{y})... {dt:.1f}s")
-            if dt > 2.0:
-                self.transition(State.BACKWARD)
-
-        # --- BACKWARD (-X) ---
-        elif self.state == State.BACKWARD:
-            x, y = self.current_target()
-            self.publish_setpoint(x, y, self.takeoff_z)
-            self.log_throttled(f"Backward to ({x},{y})... {dt:.1f}s")
-            if dt > 5.0:
-                self.transition(State.HOVER_C)
-
-        elif self.state == State.HOVER_C:
-            x, y = self.wp[State.BACKWARD]
-            self.publish_setpoint(x, y, self.takeoff_z)
-            self.log_throttled(f"Holding ({x},{y})... {dt:.1f}s")
-            if dt > 2.0:
-                self.transition(State.LEFT)
-
-        # --- LEFT (-Y, back to origin) ---
-        elif self.state == State.LEFT:
-            x, y = self.current_target()
-            self.publish_setpoint(x, y, self.takeoff_z)
-            self.log_throttled(f"Left to ({x},{y})... {dt:.1f}s")
-            if dt > 5.0:
-                self.transition(State.HOVER_D)
-
-        elif self.state == State.HOVER_D:
-            self.publish_setpoint(0.0, 0.0, self.takeoff_z)
-            self.log_throttled(f"Back at origin... {dt:.1f}s")
-            if dt > 2.0:
-                self.transition(State.LAND)
+        # --- Hover / hold states ---
+        elif self.state in _HOLD:
+            hx, hy = _HOLD[self.state]
+            self.publish_setpoint(hx * self.d, hy * self.d, self.takeoff_z)
+            self.log_throttled(
+                f"Holding ({hx * self.d:.2f}, {hy * self.d:.2f})... {dt:.1f}s"
+            )
+            if dt > HOVER_SETTLE_S:
+                next_move = State(self.state.value + 1)
+                self.transition(next_move)
 
         # --- LAND ---
         elif self.state == State.LAND:
