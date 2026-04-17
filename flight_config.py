@@ -11,6 +11,17 @@ TAKEOFF_Z_NED = -TAKEOFF_HEIGHT_M
 
 TRANSIT_DISTANCE_M = 1.5
 
+SOFT_LAND_FINAL_HEIGHT_M = 0.15
+SOFT_LAND_FINAL_Z_NED = -SOFT_LAND_FINAL_HEIGHT_M
+SOFT_LAND_DESCENT_SECONDS = 5.0
+LAND_COMMAND_SECONDS = 4.0
+
+
+def soft_landing_z(elapsed_seconds):
+    """Ramp from takeoff height down close to the floor before PX4 land mode."""
+    progress = min(max(elapsed_seconds / SOFT_LAND_DESCENT_SECONDS, 0.0), 1.0)
+    return TAKEOFF_Z_NED + progress * (SOFT_LAND_FINAL_Z_NED - TAKEOFF_Z_NED)
+
 
 def log_environment_check(node):
     """Log the ROS 2 distro so the team can catch Humble/Foxy mixups early."""

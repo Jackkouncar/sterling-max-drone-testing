@@ -45,6 +45,7 @@ Current limits:
 - Height: `1.0 m`
 - Movement: `1.5 m`
 - Square test diagonal reach: about `2.12 m` from the start point
+- Soft landing: slow descent to about `0.15 m`, then PX4 land command
 
 Have someone ready to take over or emergency stop during every test.
 
@@ -63,10 +64,11 @@ These scripts are currently tuned for indoor testing:
 
 - Takeoff height: `1.0 m`
 - Horizontal movement: `1.5 m`
+- Soft landing descent: `5.0 s` down to about `0.15 m`, then PX4 land command
 
 Be aware that the square test reaches the corner point `(1.5, 1.5)`, which is about `2.12 m` diagonally from the origin.
 
-To change these limits later, edit `TAKEOFF_HEIGHT_M` and `TRANSIT_DISTANCE_M` in `flight_config.py`.
+To change these limits later, edit `TAKEOFF_HEIGHT_M`, `TRANSIT_DISTANCE_M`, and the soft landing values in `flight_config.py`.
 
 ## Important note
 

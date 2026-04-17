@@ -17,10 +17,13 @@ import time
 from enum import Enum
 
 from flight_config import (
+    LAND_COMMAND_SECONDS,
+    SOFT_LAND_DESCENT_SECONDS,
     TARGET_DRONE,
     TAKEOFF_Z_NED,
     TRANSIT_DISTANCE_M,
     log_environment_check,
+    soft_landing_z,
 )
 from px4_msgs.msg import (
     OffboardControlMode,
@@ -221,9 +224,14 @@ class TestAllDirections(Node):
 
         # --- LAND ---
         elif self.state == State.LAND:
+            self.publish_setpoint(0.0, 0.0, soft_landing_z(dt))
+            if dt < SOFT_LAND_DESCENT_SECONDS:
+                self.log_throttled(f"Soft descending... {dt:.1f}s")
+                return
+
             self.land()
-            self.log_throttled("Landing...")
-            if dt > 3.0:
+            self.log_throttled("Final landing command...")
+            if dt > SOFT_LAND_DESCENT_SECONDS + LAND_COMMAND_SECONDS:
                 self.get_logger().info("=== Test Complete: Square pattern done ===")
                 raise SystemExit
 
